@@ -3,8 +3,8 @@ package io.rx.pipe.node;
 import io.rx.pipe.dispatcher.Dispatcher;
 
 public abstract class Node2<E1, E2> implements Node {
-    private Dispatcher<E1> dispatcher1;
-    private Dispatcher<E2> dispatcher2;
+    protected Dispatcher<E1> dispatcher1;
+    protected Dispatcher<E2> dispatcher2;
     public abstract void onEvent1(E1 event);
     public abstract void onEvent2(E2 event);
 

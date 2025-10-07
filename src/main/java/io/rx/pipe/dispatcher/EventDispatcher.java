@@ -9,13 +9,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public interface EventDispatcher<E> extends Dispatcher<E> {
 
-    /**
-     * Single-method functional interface (acts as the callback type).
-     */
-    @FunctionalInterface
-    interface Listener<E> {
-        void onEvent(E event);
-    }
 
     /**
      * Get the list of listeners for this dispatcher.
@@ -73,12 +66,12 @@ public interface EventDispatcher<E> extends Dispatcher<E> {
      */
     static <E> EventDispatcher<E> create() {
         List<Listener<E>> listeners = new CopyOnWriteArrayList<>();
-        return new EventDispatcher<E>() {
+        return new EventDispatcher<>() {
             @Override
             public List<Listener<E>> getListeners() {
                 return listeners;
             }
-            
+
             @Override
             public Logger getLogger() {
                 return LoggerFactory.getLogger(EventDispatcher.class);

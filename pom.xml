@@ -30,7 +30,6 @@
             <version>2.0.9</version>
         </dependency>
 
-        <!-- Logback implementation (brings logback-core transitively) -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
@@ -43,12 +42,13 @@
             <version>1.18.30</version>
             <scope>provided</scope>
         </dependency>
-        
+
         <dependency>
-            <groupId>org.agrona</groupId>
-            <artifactId>agrona</artifactId>
-            <version>1.19.2</version>
+            <groupId>com.lmax</groupId>
+            <artifactId>disruptor</artifactId>
+            <version>4.0.0</version>
         </dependency>
+        
     </dependencies>
 
     <build>
@@ -63,6 +63,16 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>14</source>
+                    <target>14</target>
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
 </project>

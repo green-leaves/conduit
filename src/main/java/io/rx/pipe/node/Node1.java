@@ -3,7 +3,7 @@ package io.rx.pipe.node;
 import io.rx.pipe.dispatcher.Dispatcher;
 
 public abstract class Node1<E1> implements Node {
-    private Dispatcher<E1> dispatcher1;
+    protected Dispatcher<E1> dispatcher1;
     
     public abstract void onEvent1(E1 event);
 
