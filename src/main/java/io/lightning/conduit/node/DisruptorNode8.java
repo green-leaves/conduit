@@ -1,19 +1,19 @@
-package io.rx.pipe.node;
+package io.lightning.conduit.node;
 
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.WaitStrategy;
 import com.lmax.disruptor.dsl.Disruptor;
 
-public abstract class DisruptorNode6<E1, E2, E3, E4, E5, E6> extends Node6<E1, E2, E3, E4, E5, E6> {
+public abstract class DisruptorNode8<E1, E2, E3, E4, E5, E6, E7, E8> extends Node8<E1, E2, E3, E4, E5, E6, E7, E8> {
 
     private final DisruptorComponent disruptorComponent = new DisruptorComponent();
 
-    public DisruptorNode6<E1, E2, E3, E4, E5, E6> bufferSize(int bufferSize) {
+    public DisruptorNode8<E1, E2, E3, E4, E5, E6, E7, E8> bufferSize(int bufferSize) {
         disruptorComponent.setBufferSize(bufferSize);
         return this;
     }
 
-    public DisruptorNode6<E1, E2, E3, E4, E5, E6> waitStrategy(WaitStrategy waitStrategy) {
+    public DisruptorNode8<E1, E2, E3, E4, E5, E6, E7, E8> waitStrategy(WaitStrategy waitStrategy) {
         disruptorComponent.setWaitStrategy(waitStrategy);
         return this;
     }
@@ -29,6 +29,8 @@ public abstract class DisruptorNode6<E1, E2, E3, E4, E5, E6> extends Node6<E1, E
                 case 4 -> onEvent4((E4) event.getPayload());
                 case 5 -> onEvent5((E5) event.getPayload());
                 case 6 -> onEvent6((E6) event.getPayload());
+                case 7 -> onEvent7((E7) event.getPayload());
+                case 8 -> onEvent8((E8) event.getPayload());
             }
         });
 
@@ -40,7 +42,9 @@ public abstract class DisruptorNode6<E1, E2, E3, E4, E5, E6> extends Node6<E1, E
                 this.dispatcher3,
                 this.dispatcher4,
                 this.dispatcher5,
-                this.dispatcher6
+                this.dispatcher6,
+                this.dispatcher7,
+                this.dispatcher8
         );
     }
 }

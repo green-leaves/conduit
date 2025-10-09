@@ -1,19 +1,19 @@
-package io.rx.pipe.node;
+package io.lightning.conduit.node;
 
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.WaitStrategy;
 import com.lmax.disruptor.dsl.Disruptor;
 
-public abstract class DisruptorNode2<E1, E2> extends Node2<E1, E2> {
+public abstract class DisruptorNode1<E1> extends Node1<E1> {
 
     private final DisruptorComponent disruptorComponent = new DisruptorComponent();
 
-    public DisruptorNode2<E1, E2> bufferSize(int bufferSize) {
+    public DisruptorNode1<E1> bufferSize(int bufferSize) {
         disruptorComponent.setBufferSize(bufferSize);
         return this;
     }
 
-    public DisruptorNode2<E1, E2> waitStrategy(WaitStrategy waitStrategy) {
+    public DisruptorNode1<E1> waitStrategy(WaitStrategy waitStrategy) {
         disruptorComponent.setWaitStrategy(waitStrategy);
         return this;
     }
@@ -22,17 +22,15 @@ public abstract class DisruptorNode2<E1, E2> extends Node2<E1, E2> {
     public void start() {
         Disruptor<Event> disruptor = disruptorComponent.getDisruptor();
         disruptor.handleEventsWith((event, l, b) -> {
-           switch (event.getType()) {
-               case 1 -> onEvent1((E1) event.getPayload());
-               case 2 -> onEvent2((E2) event.getPayload());
-           }
+            if (event.getType() == 1) {
+                onEvent1((E1) event.getPayload());
+            }
         });
 
         RingBuffer<Event> ringBuffer = disruptor.start();
         this.disruptorComponent.setRingBuffer(ringBuffer);
         this.disruptorComponent.register(
-                this.dispatcher1,
-                this.dispatcher2
+                this.dispatcher1
         );
     }
 }

@@ -1,4 +1,4 @@
-package io.rx.pipe.node;
+package io.lightning.conduit.node;
 
 import lombok.Getter;
 import lombok.Setter;

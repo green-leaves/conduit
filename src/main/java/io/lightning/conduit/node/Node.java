@@ -1,4 +1,4 @@
-package io.rx.pipe.node;
+package io.lightning.conduit.node;
 
 public interface Node {
     void start();

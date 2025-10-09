@@ -1,10 +1,10 @@
-package io.rx.pipe.node;
+package io.lightning.conduit.node;
 
 import com.lmax.disruptor.*;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
 import com.lmax.disruptor.util.DaemonThreadFactory;
-import io.rx.pipe.dispatcher.Dispatcher;
+import io.lightning.conduit.dispatcher.Dispatcher;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.val;

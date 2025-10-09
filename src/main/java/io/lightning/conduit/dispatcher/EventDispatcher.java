@@ -1,4 +1,4 @@
-package io.rx.pipe.dispatcher;
+package io.lightning.conduit.dispatcher;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

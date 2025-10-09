@@ -1,6 +1,6 @@
-package io.rx.pipe.node;
+package io.lightning.conduit.node;
 
-import io.rx.pipe.dispatcher.Dispatcher;
+import io.lightning.conduit.dispatcher.Dispatcher;
 
 public abstract class Node3<E1, E2, E3> implements Node {
     protected Dispatcher<E1> dispatcher1;

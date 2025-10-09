@@ -1,8 +1,8 @@
-package io.rx.pipe.node;
+package io.lightning.conduit.node;
 
-import io.rx.pipe.dispatcher.Dispatcher;
+import io.lightning.conduit.dispatcher.Dispatcher;
 
-public abstract class Node7<E1, E2, E3, E4, E5, E6, E7> implements Node {
+public abstract class Node8<E1, E2, E3, E4, E5, E6, E7, E8> implements Node {
     protected Dispatcher<E1> dispatcher1;
     protected Dispatcher<E2> dispatcher2;
     protected Dispatcher<E3> dispatcher3;
@@ -10,6 +10,7 @@ public abstract class Node7<E1, E2, E3, E4, E5, E6, E7> implements Node {
     protected Dispatcher<E5> dispatcher5;
     protected Dispatcher<E6> dispatcher6;
     protected Dispatcher<E7> dispatcher7;
+    protected Dispatcher<E8> dispatcher8;
     
     public abstract void onEvent1(E1 event);
     public abstract void onEvent2(E2 event);
@@ -18,39 +19,45 @@ public abstract class Node7<E1, E2, E3, E4, E5, E6, E7> implements Node {
     public abstract void onEvent5(E5 event);
     public abstract void onEvent6(E6 event);
     public abstract void onEvent7(E7 event);
+    public abstract void onEvent8(E8 event);
 
-    public Node7<E1, E2, E3, E4, E5, E6, E7> subscribe1(Dispatcher<E1> dispatcher1) {
+    public Node8<E1, E2, E3, E4, E5, E6, E7, E8> subscribe1(Dispatcher<E1> dispatcher1) {
         this.dispatcher1 = dispatcher1;
         return this;
     }
     
-    public Node7<E1, E2, E3, E4, E5, E6, E7> subscribe2(Dispatcher<E2> dispatcher2) {
+    public Node8<E1, E2, E3, E4, E5, E6, E7, E8> subscribe2(Dispatcher<E2> dispatcher2) {
         this.dispatcher2 = dispatcher2;
         return this;
     }
     
-    public Node7<E1, E2, E3, E4, E5, E6, E7> subscribe3(Dispatcher<E3> dispatcher3) {
+    public Node8<E1, E2, E3, E4, E5, E6, E7, E8> subscribe3(Dispatcher<E3> dispatcher3) {
         this.dispatcher3 = dispatcher3;
         return this;
     }
     
-    public Node7<E1, E2, E3, E4, E5, E6, E7> subscribe4(Dispatcher<E4> dispatcher4) {
+    public Node8<E1, E2, E3, E4, E5, E6, E7, E8> subscribe4(Dispatcher<E4> dispatcher4) {
         this.dispatcher4 = dispatcher4;
         return this;
     }
     
-    public Node7<E1, E2, E3, E4, E5, E6, E7> subscribe5(Dispatcher<E5> dispatcher5) {
+    public Node8<E1, E2, E3, E4, E5, E6, E7, E8> subscribe5(Dispatcher<E5> dispatcher5) {
         this.dispatcher5 = dispatcher5;
         return this;
     }
     
-    public Node7<E1, E2, E3, E4, E5, E6, E7> subscribe6(Dispatcher<E6> dispatcher6) {
+    public Node8<E1, E2, E3, E4, E5, E6, E7, E8> subscribe6(Dispatcher<E6> dispatcher6) {
         this.dispatcher6 = dispatcher6;
         return this;
     }
     
-    public Node7<E1, E2, E3, E4, E5, E6, E7> subscribe7(Dispatcher<E7> dispatcher7) {
+    public Node8<E1, E2, E3, E4, E5, E6, E7, E8> subscribe7(Dispatcher<E7> dispatcher7) {
         this.dispatcher7 = dispatcher7;
+        return this;
+    }
+
+    public Node8<E1, E2, E3, E4, E5, E6, E7, E8> subscribe8(Dispatcher<E8> dispatcher8) {
+        this.dispatcher8 = dispatcher8;
         return this;
     }
 
@@ -63,5 +70,6 @@ public abstract class Node7<E1, E2, E3, E4, E5, E6, E7> implements Node {
         this.dispatcher5.register(this::onEvent5);
         this.dispatcher6.register(this::onEvent6);
         this.dispatcher7.register(this::onEvent7);
+        this.dispatcher8.register(this::onEvent8);
     }
 }

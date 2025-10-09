@@ -1,4 +1,4 @@
-package io.rx.pipe.dispatcher;
+package io.lightning.conduit.dispatcher;
 
 public interface Dispatcher<E> {
     /**
