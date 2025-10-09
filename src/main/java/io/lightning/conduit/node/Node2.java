@@ -5,8 +5,8 @@ import io.lightning.conduit.dispatcher.Dispatcher;
 public abstract class Node2<E1, E2> implements Node {
     protected Dispatcher<E1> dispatcher1;
     protected Dispatcher<E2> dispatcher2;
-    public abstract void onEvent1(E1 event);
-    public abstract void onEvent2(E2 event);
+    protected abstract void onEvent1(E1 event);
+    protected abstract void onEvent2(E2 event);
 
     public Node2<E1, E2> subscribe1(Dispatcher<E1> dispatcher1) {
         this.dispatcher1 = dispatcher1;

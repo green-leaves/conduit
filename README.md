@@ -48,12 +48,12 @@ EventDispatcher<String> stringDispatcher = EventDispatcher.create();
 // Create a node that handles two different input types
 public static class CombineNode extends DisruptorNode2<Integer, String> {
     @Override
-    public void onEvent1(Integer event) {
+    protected void onEvent1(Integer event) {
         System.out.println("Received integer: " + event);
     }
 
     @Override
-    public void onEvent2(String event) {
+    protected void onEvent2(String event) {
         System.out.println("Received string: " + event);
     }
 }
@@ -80,17 +80,17 @@ EventDispatcher<Volume> volumeDispatcher = EventDispatcher.create();
 // Create a node that processes three different input types
 public static class FinancialProcessor extends DisruptorNode3<Price, Rate, Volume> {
     @Override
-    public void onEvent1(Price price) {
+    protected void onEvent1(Price price) {
         // Process price data
     }
 
     @Override
-    public void onEvent2(Rate rate) {
+    protected void onEvent2(Rate rate) {
         // Process rate data
     }
 
     @Override
-    public void onEvent3(Volume volume) {
+    protected void onEvent3(Volume volume) {
         // Process volume data
     }
 }

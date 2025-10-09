@@ -9,11 +9,11 @@ public abstract class Node5<E1, E2, E3, E4, E5> implements Node {
     protected Dispatcher<E4> dispatcher4;
     protected Dispatcher<E5> dispatcher5;
     
-    public abstract void onEvent1(E1 event);
-    public abstract void onEvent2(E2 event);
-    public abstract void onEvent3(E3 event);
-    public abstract void onEvent4(E4 event);
-    public abstract void onEvent5(E5 event);
+    protected abstract void onEvent1(E1 event);
+    protected abstract void onEvent2(E2 event);
+    protected abstract void onEvent3(E3 event);
+    protected abstract void onEvent4(E4 event);
+    protected abstract void onEvent5(E5 event);
 
     public Node5<E1, E2, E3, E4, E5> subscribe1(Dispatcher<E1> dispatcher1) {
         this.dispatcher1 = dispatcher1;

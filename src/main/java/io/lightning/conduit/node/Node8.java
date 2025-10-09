@@ -12,14 +12,14 @@ public abstract class Node8<E1, E2, E3, E4, E5, E6, E7, E8> implements Node {
     protected Dispatcher<E7> dispatcher7;
     protected Dispatcher<E8> dispatcher8;
     
-    public abstract void onEvent1(E1 event);
-    public abstract void onEvent2(E2 event);
-    public abstract void onEvent3(E3 event);
-    public abstract void onEvent4(E4 event);
-    public abstract void onEvent5(E5 event);
-    public abstract void onEvent6(E6 event);
-    public abstract void onEvent7(E7 event);
-    public abstract void onEvent8(E8 event);
+    protected abstract void onEvent1(E1 event);
+    protected abstract void onEvent2(E2 event);
+    protected abstract void onEvent3(E3 event);
+    protected abstract void onEvent4(E4 event);
+    protected abstract void onEvent5(E5 event);
+    protected abstract void onEvent6(E6 event);
+    protected abstract void onEvent7(E7 event);
+    protected abstract void onEvent8(E8 event);
 
     public Node8<E1, E2, E3, E4, E5, E6, E7, E8> subscribe1(Dispatcher<E1> dispatcher1) {
         this.dispatcher1 = dispatcher1;

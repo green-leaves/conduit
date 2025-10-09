@@ -7,9 +7,9 @@ public abstract class Node3<E1, E2, E3> implements Node {
     protected Dispatcher<E2> dispatcher2;
     protected Dispatcher<E3> dispatcher3;
     
-    public abstract void onEvent1(E1 event);
-    public abstract void onEvent2(E2 event);
-    public abstract void onEvent3(E3 event);
+    protected abstract void onEvent1(E1 event);
+    protected abstract void onEvent2(E2 event);
+    protected abstract void onEvent3(E3 event);
 
     public Node3<E1, E2, E3> subscribe1(Dispatcher<E1> dispatcher1) {
         this.dispatcher1 = dispatcher1;
