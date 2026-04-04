@@ -5,10 +5,11 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class Event {
+public class Event<T> {
     private int type;
-    private Object payload;
-    public void set(Object payload, int type) {
+    private T payload;
+
+    public void set(T payload, int type) {
         this.payload = payload;
         this.type = type;
     }

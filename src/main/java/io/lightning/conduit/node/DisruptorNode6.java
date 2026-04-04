@@ -6,7 +6,7 @@ import com.lmax.disruptor.dsl.Disruptor;
 
 public abstract class DisruptorNode6<E1, E2, E3, E4, E5, E6> extends Node6<E1, E2, E3, E4, E5, E6> {
 
-    private final DisruptorComponent disruptorComponent = new DisruptorComponent();
+    private final DisruptorComponent<Object> disruptorComponent = new DisruptorComponent<>();
 
     public DisruptorNode6<E1, E2, E3, E4, E5, E6> bufferSize(int bufferSize) {
         disruptorComponent.setBufferSize(bufferSize);
@@ -18,9 +18,10 @@ public abstract class DisruptorNode6<E1, E2, E3, E4, E5, E6> extends Node6<E1, E
         return this;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void start() {
-        Disruptor<Event> disruptor = disruptorComponent.getDisruptor();
+        Disruptor<Event<Object>> disruptor = disruptorComponent.getDisruptor();
         disruptor.handleEventsWith((event, l, b) -> {
             switch (event.getType()) {
                 case 1 -> onEvent1((E1) event.getPayload());
@@ -32,7 +33,7 @@ public abstract class DisruptorNode6<E1, E2, E3, E4, E5, E6> extends Node6<E1, E
             }
         });
 
-        RingBuffer<Event> ringBuffer = disruptor.start();
+        RingBuffer<Event<Object>> ringBuffer = disruptor.start();
         this.disruptorComponent.setRingBuffer(ringBuffer);
         this.disruptorComponent.register(
                 this.dispatcher1,

@@ -11,13 +11,13 @@ import lombok.val;
 
 @Getter
 @Setter
-public class DisruptorComponent {
+public class DisruptorComponent<T> {
     private int bufferSize = 1024;
-    private Disruptor<Event> disruptor;
-    private RingBuffer<Event> ringBuffer;
+    private Disruptor<Event<T>> disruptor;
+    private RingBuffer<Event<T>> ringBuffer;
     private WaitStrategy waitStrategy = new BusySpinWaitStrategy();
 
-    public Disruptor<Event> getDisruptor() {
+    public Disruptor<Event<T>> getDisruptor() {
         if (disruptor == null) {
             return new Disruptor<>(
                     Event::new,
@@ -31,17 +31,16 @@ public class DisruptorComponent {
     }
 
     @SuppressWarnings("unchecked")
-    public void register(Dispatcher ... dispatchers) {
+    public void register(Dispatcher<?> ... dispatchers) {
         for (int i = 0; i < dispatchers.length; i++) {
-            val dispatcher = dispatchers[i];
+            Dispatcher<T> dispatcher = (Dispatcher<T>) dispatchers[i];
             final int index = i + 1;
             dispatcher.register(e -> {
                 long sequence = ringBuffer.next();
-                Event event = ringBuffer.get(sequence);
+                Event<T> event = ringBuffer.get(sequence);
                 event.set(e, index);
                 ringBuffer.publish(sequence);
             });
         }
-
     }
 }
