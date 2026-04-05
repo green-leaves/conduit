@@ -33,6 +33,24 @@ The design supports nodes with up to 9 different input types, each with its own 
 - `Node1`, `Node2`, ..., `Node9` - for nodes with 1 to 9 different input types
 - `DisruptorNode1`, `DisruptorNode2`, ..., `DisruptorNode9` - Disruptor-based implementations for high-performance scenarios
 
+## Installation
+
+### Maven
+
+```xml
+<dependency>
+    <groupId>io.github.green-leaves</groupId>
+    <artifactId>conduit</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
+
+### Gradle
+
+```groovy
+implementation 'io.github.green-leaves:conduit:1.0.0'
+```
+
 ## Getting Started
 
 ### Example: Basic Usage
@@ -147,8 +165,7 @@ Conduit achieves high performance through:
 
 - Java 21+
 - LMAX Disruptor 4.0.0
-- SLF4J for logging
-- Logback for logging implementation
+- SLF4J API for logging
 - Lombok for reduced boilerplate code
 
 ## Building and Running
@@ -175,7 +192,7 @@ Conduit is ideal for:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 ## Architecture Diagram
 

@@ -1,12 +1,34 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>io.lightning</groupId>
+    <groupId>io.github.green-leaves</groupId>
     <artifactId>conduit</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
     <name>conduit</name>
-    <url>http://maven.apache.org</url>
+    <url>https://github.com/green-leaves/conduit</url>
+
+    <description>High-performance event processing library built on LMAX Disruptor</description>
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <id>duytiep</id>
+            <name>duytiep</name>
+            <url>https://github.com/duytiep</url>
+        </developer>
+    </developers>
+    <scm>
+        <connection>scm:git:https://github.com/green-leaves/conduit.git</connection>
+        <developerConnection>scm:git:https://github.com/green-leaves/conduit.git</developerConnection>
+        <url>https://github.com/green-leaves/conduit</url>
+        <tag>HEAD</tag>
+    </scm>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -34,6 +56,7 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>1.5.13</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -48,7 +71,7 @@
             <artifactId>disruptor</artifactId>
             <version>4.0.0</version>
         </dependency>
-        
+
     </dependencies>
 
     <build>
@@ -68,7 +91,63 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
             </plugin>
-
+            <!-- Generates Javadoc JAR (required by Maven Central) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Generates Sources JAR (required by Maven Central) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Signs artifacts with GPG (required by Maven Central) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Publishes to Maven Central via the Sonatype Central Portal -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.6.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <!-- Matches the <server id> in ~/.m2/settings.xml -->
+                    <publishingServerId>central</publishingServerId>
+                    <!-- Set to true to release automatically; false = manual review in portal -->
+                    <autoPublish>false</autoPublish>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
+
 </project>
