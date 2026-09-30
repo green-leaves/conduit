@@ -1,81 +1,58 @@
 package io.lightning.conduit.dispatcher;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.CopyOnWriteArrayList;
 
+/**
+ * A {@link Dispatcher} backed by a {@link ListenerRegistry} and driven by the single-threaded
+ * cycle engine. Nodes that also produce output implement this interface and hold a registry:
+ *
+ * <pre>{@code
+ * class Normalizer extends Node1<Tick> implements EventDispatcher<Rate> {
+ *     private final ListenerRegistry<Rate> listeners = new ListenerRegistry<>();
+ *     public ListenerRegistry<Rate> listeners() { return listeners; }
+ *     protected void onEvent1(Tick t) { dispatch(toRate(t)); }
+ * }
+ * }</pre>
+ *
+ * <p>An external {@code dispatch} runs one complete cycle (and any follow-up cycles caused by
+ * re-entrant dispatches) before returning. Dispatches made from inside a handler never recurse:
+ * output of a node to its own children is propagated within the same cycle in topological
+ * order; anything else is queued as a follow-up cycle.
+ */
 public interface EventDispatcher<E> extends Dispatcher<E> {
 
+    /** The listener storage backing this dispatcher. */
+    ListenerRegistry<E> listeners();
 
-    /**
-     * Get the list of listeners for this dispatcher.
-     */
-    List<Listener<E>> getListeners();
-
-    /**
-     * Default logger for the EventDispatcher interface.
-     */
-    default Logger getLogger() {
-        // Use the implementing class as the logger name
-        return LoggerFactory.getLogger(this.getClass());
+    /** Read-only snapshot of the registered listeners. */
+    default List<Listener<E>> getListeners() {
+        return listeners().asList();
     }
 
-    /**
-     * Register a listener/callback.
-     */
+    @Override
     default void register(Listener<E> listener) {
-        Objects.requireNonNull(listener, "listener must not be null");
-        getListeners().add(listener);
+        listeners().add(listener);
     }
 
-    /**
-     * Remove a previously registered listener.
-     * Returns true if the listener was found and removed.
-     */
     @Override
     default boolean unregister(Listener<E> listener) {
-        return getListeners().remove(listener);
+        return listeners().remove(listener);
     }
 
-    /**
-     * Fire the event to every registered listener.
-     */
-    default void dispatch(E event) {
-        for (Listener<E> listener : getListeners()) {
-            try {
-                listener.onEvent(event);
-            } catch (Exception ex) {
-                getLogger().warn("Exception in event listener: {}", ex.getMessage(), ex);
-            }
-        }
-    }
-
-    /**
-     * Convenience: clear all listeners at once.
-     */
     @Override
     default void clear() {
-        getListeners().clear();
+        listeners().clear();
+    }
+
+    @Override
+    default void dispatch(E event) {
+        CycleEngine.dispatch(this, listeners().snapshot(), event);
     }
 
     /**
      * Static factory method to create an EventDispatcher instance.
      */
     static <E> EventDispatcher<E> create() {
-        List<Listener<E>> listeners = new CopyOnWriteArrayList<>();
-        return new EventDispatcher<>() {
-            @Override
-            public List<Listener<E>> getListeners() {
-                return listeners;
-            }
-
-            @Override
-            public Logger getLogger() {
-                return LoggerFactory.getLogger(EventDispatcher.class);
-            }
-        };
+        return new DefaultEventDispatcher<>();
     }
 }

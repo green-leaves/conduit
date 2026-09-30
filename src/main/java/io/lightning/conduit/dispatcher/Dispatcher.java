@@ -9,6 +9,7 @@ public interface Dispatcher<E> {
         void onEvent(E event);
     }
 
+    /** Registers a listener. Registering the same listener instance twice has no effect. */
     void register(Listener<E> listener);
     boolean unregister(Listener<E> listener);
     void clear();

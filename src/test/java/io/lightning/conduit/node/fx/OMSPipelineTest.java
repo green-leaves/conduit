@@ -2,6 +2,7 @@ package io.lightning.conduit.node.fx;
 
 import io.lightning.conduit.dispatcher.Dispatcher;
 import io.lightning.conduit.dispatcher.EventDispatcher;
+import io.lightning.conduit.dispatcher.ListenerRegistry;
 import io.lightning.conduit.node.Node1;
 import io.lightning.conduit.node.Node2;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,7 +10,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -53,7 +53,7 @@ public class OMSPipelineTest {
 
     static class NormalizerNode extends Node1<Tick> implements EventDispatcher<Rate> {
 
-        private final List<Listener<Rate>> listeners = new CopyOnWriteArrayList<>();
+        private final ListenerRegistry<Rate> listeners = new ListenerRegistry<>();
         private final double spreadFraction; // e.g. 0.001 = 0.1%
 
         NormalizerNode(double spreadFraction) {
@@ -61,7 +61,7 @@ public class OMSPipelineTest {
         }
 
         @Override
-        public List<Listener<Rate>> getListeners() {
+        public ListenerRegistry<Rate> listeners() {
             return listeners;
         }
 
@@ -86,13 +86,13 @@ public class OMSPipelineTest {
 
     static class MatcherNode extends Node2<Rate, Order> implements EventDispatcher<Trade> {
 
-        private final List<Listener<Trade>> listeners = new CopyOnWriteArrayList<>();
+        private final ListenerRegistry<Trade> listeners = new ListenerRegistry<>();
 
         // last known rate (null until first Rate event)
         private Rate currentRate;
 
         @Override
-        public List<Listener<Trade>> getListeners() {
+        public ListenerRegistry<Trade> listeners() {
             return listeners;
         }
 

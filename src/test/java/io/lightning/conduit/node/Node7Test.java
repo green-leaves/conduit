@@ -1,5 +1,6 @@
 package io.lightning.conduit.node;
 
+import io.lightning.conduit.ErrorPolicy;
 import io.lightning.conduit.dispatcher.Dispatcher;
 import io.lightning.conduit.dispatcher.EventDispatcher;
 import org.junit.jupiter.api.BeforeEach;
@@ -99,6 +100,7 @@ public class Node7Test {
                 super.onEvent7(e);
             }
         };
+        node.errorPolicy(ErrorPolicy.SKIP_EVENT);
         node.subscribe1(d1).subscribe2(d2).subscribe3(d3).subscribe4(d4)
             .subscribe5(d5).subscribe6(d6).subscribe7(d7).start();
 
