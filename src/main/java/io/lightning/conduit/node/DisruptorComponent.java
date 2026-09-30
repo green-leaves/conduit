@@ -1,46 +1,242 @@
 package io.lightning.conduit.node;
 
-import com.lmax.disruptor.*;
+import com.lmax.disruptor.BusySpinWaitStrategy;
+import com.lmax.disruptor.EventHandler;
+import com.lmax.disruptor.EventTranslatorTwoArg;
+import com.lmax.disruptor.ExceptionHandler;
+import com.lmax.disruptor.RingBuffer;
+import com.lmax.disruptor.WaitStrategy;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
-import com.lmax.disruptor.util.DaemonThreadFactory;
+import io.lightning.conduit.Conduit;
+import io.lightning.conduit.ConduitException;
 import io.lightning.conduit.dispatcher.Dispatcher;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.val;
+import io.lightning.conduit.dispatcher.GraphNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Getter
-@Setter
-public class DisruptorComponent<T> {
+import java.util.Objects;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.locks.LockSupport;
+
+/**
+ * Ring buffer and consumer thread behind a Disruptor node. Producers publish from whatever thread
+ * dispatches to the node's inputs; the node's handlers run on the consumer thread.
+ *
+ * <p>Handler failures never kill the consumer thread. Under {@link io.lightning.conduit.ErrorPolicy#HALT}
+ * the node is marked halted: the consumer drains and discards remaining events (so producers never
+ * stall on a full ring) and further dispatches to the node throw {@link ConduitException}.
+ */
+public final class DisruptorComponent {
+    private static final Logger LOG = LoggerFactory.getLogger(DisruptorComponent.class);
+    private static final AtomicInteger THREAD_IDS = new AtomicInteger();
+    private static final long SHUTDOWN_TIMEOUT_MS = 5_000;
+
+    private static final EventTranslatorTwoArg<Event<Object>, Object, Integer> TRANSLATOR =
+            (event, sequence, payload, type) -> event.set(payload, type);
+
+    /** What a producer does when the ring buffer is full. */
+    public enum Backpressure {
+        /** Wait for space (default). Never loses events; a slow consumer slows its producers. */
+        BLOCK,
+        /** Drop the new event and count it in {@link #droppedCount()}. Producers never wait. */
+        DROP
+    }
+
+    /** Receives each event on the consumer thread. */
+    @FunctionalInterface
+    public interface Sink {
+        void deliver(int input, Object payload);
+    }
+
+    private final GraphNode owner;
     private int bufferSize = 1024;
-    private Disruptor<Event<T>> disruptor;
-    private RingBuffer<Event<T>> ringBuffer;
     private WaitStrategy waitStrategy = new BusySpinWaitStrategy();
+    private ProducerType producerType = ProducerType.MULTI;
+    private ThreadFactory threadFactory;
+    private Backpressure backpressure = Backpressure.BLOCK;
 
-    public Disruptor<Event<T>> getDisruptor() {
-        if (disruptor == null) {
-            return new Disruptor<>(
-                    Event::new,
-                    bufferSize,
-                    DaemonThreadFactory.INSTANCE,
-                    ProducerType.MULTI,
-                    waitStrategy
-            );
+    private Disruptor<Event<Object>> disruptor;
+    private RingBuffer<Event<Object>> ringBuffer;
+    private Dispatcher.Listener<Object>[] publishers;
+    private volatile boolean halted;
+    private final LongAdder dropped = new LongAdder();
+
+    public DisruptorComponent(GraphNode owner) {
+        this.owner = Objects.requireNonNull(owner, "owner");
+    }
+
+    // ------------------------------------------------------------------ configuration
+
+    public void bufferSize(int bufferSize) {
+        if (Integer.bitCount(bufferSize) != 1) {
+            throw new IllegalArgumentException("bufferSize must be a power of 2: " + bufferSize);
         }
+        this.bufferSize = bufferSize;
+    }
+
+    public void waitStrategy(WaitStrategy waitStrategy) {
+        this.waitStrategy = Objects.requireNonNull(waitStrategy, "waitStrategy");
+    }
+
+    /** Use {@link ProducerType#SINGLE} only if every input is dispatched from one and the same thread. */
+    public void producerType(ProducerType producerType) {
+        this.producerType = Objects.requireNonNull(producerType, "producerType");
+    }
+
+    /** Factory for the consumer thread, e.g. to pin it to a core. Default: named daemon thread. */
+    public void threadFactory(ThreadFactory threadFactory) {
+        this.threadFactory = Objects.requireNonNull(threadFactory, "threadFactory");
+    }
+
+    public void backpressure(Backpressure backpressure) {
+        this.backpressure = Objects.requireNonNull(backpressure, "backpressure");
+    }
+
+    public int bufferSize() {
+        return bufferSize;
+    }
+
+    public long droppedCount() {
+        return dropped.sum();
+    }
+
+    public boolean isHalted() {
+        return halted;
+    }
+
+    /** The running Disruptor, or {@code null} when stopped. */
+    public Disruptor<Event<Object>> disruptor() {
         return disruptor;
     }
 
+    // ------------------------------------------------------------------ lifecycle
+
     @SuppressWarnings("unchecked")
-    public void register(Dispatcher<?> ... dispatchers) {
-        for (int i = 0; i < dispatchers.length; i++) {
-            Dispatcher<T> dispatcher = (Dispatcher<T>) dispatchers[i];
-            final int index = i + 1;
-            dispatcher.register(e -> {
-                long sequence = ringBuffer.next();
-                Event<T> event = ringBuffer.get(sequence);
-                event.set(e, index);
-                ringBuffer.publish(sequence);
-            });
+    public void start(Dispatcher<?>[] inputs, Sink sink, Runnable endOfBatch) {
+        halted = false;
+        ThreadFactory factory = threadFactory != null ? threadFactory : defaultThreadFactory();
+        Disruptor<Event<Object>> d = new Disruptor<>(Event::new, bufferSize, factory, producerType, waitStrategy);
+        d.handleEventsWith((EventHandler<Event<Object>>) (event, sequence, endOfBatchFlag) -> {
+            if (!halted) {
+                try {
+                    sink.deliver(event.getType(), event.getPayload());
+                } catch (Throwable t) {
+                    fail(event.getPayload(), t);
+                }
+            }
+            event.clear();
+            if (endOfBatchFlag && !halted) {
+                try {
+                    endOfBatch.run();
+                } catch (Throwable t) {
+                    fail(null, t);
+                }
+            }
+        });
+        d.setDefaultExceptionHandler(new SafetyNet());
+        ringBuffer = d.start();
+        disruptor = d;
+
+        publishers = new Dispatcher.Listener[inputs.length];
+        for (int i = 0; i < inputs.length; i++) {
+            Integer type = i + 1;
+            publishers[i] = payload -> publish(payload, type);
+            ((Dispatcher<Object>) inputs[i]).register(publishers[i]);
+        }
+    }
+
+    /** Unsubscribes, lets in-flight events drain (up to 5s), then stops the consumer thread. */
+    @SuppressWarnings("unchecked")
+    public void stop(Dispatcher<?>[] inputs) {
+        if (publishers != null) {
+            for (int i = 0; i < inputs.length; i++) {
+                ((Dispatcher<Object>) inputs[i]).unregister(publishers[i]);
+            }
+            publishers = null;
+        }
+        Disruptor<Event<Object>> d = disruptor;
+        if (d == null) return;
+        // Disruptor.shutdown() only counts backlog on consumers already running, so it can halt a
+        // consumer whose thread has not started yet and lose everything; wait on the sequence instead.
+        RingBuffer<Event<Object>> rb = ringBuffer;
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(SHUTDOWN_TIMEOUT_MS);
+        while (rb.getMinimumGatingSequence() < rb.getCursor() && System.nanoTime() < deadline) {
+            LockSupport.parkNanos(50_000);
+        }
+        d.halt();
+        disruptor = null;
+        ringBuffer = null;
+    }
+
+    /** Stops the consumer thread immediately; queued events are not processed. */
+    public void halt() {
+        halted = true;
+        Disruptor<Event<Object>> d = disruptor;
+        if (d != null) d.halt();
+    }
+
+    // ------------------------------------------------------------------ internals
+
+    private void publish(Object payload, Integer type) {
+        if (halted) {
+            throw new ConduitException(owner + " is halted after a handler failure", owner, null);
+        }
+        RingBuffer<Event<Object>> rb = ringBuffer;
+        if (rb == null) return;   // raced with stop()
+        if (backpressure == Backpressure.DROP) {
+            if (!rb.tryPublishEvent(TRANSLATOR, payload, type)) dropped.increment();
+        } else {
+            rb.publishEvent(TRANSLATOR, payload, type);
+        }
+    }
+
+    private void fail(Object event, Throwable error) {
+        Conduit.reportError(owner, event, error);
+        if (error instanceof VirtualMachineError) {
+            halted = true;
+            LOG.error("fatal error in {}; node halted", owner, error);
+            return;
+        }
+        switch (owner.errorPolicy()) {
+            case HALT -> {
+                halted = true;
+                LOG.error("handler failed in {}; node halted", owner, error);
+            }
+            case SKIP_EVENT -> { }
+            case LOG_CONTINUE -> LOG.warn("handler failed in {}", owner, error);
+        }
+    }
+
+    private ThreadFactory defaultThreadFactory() {
+        String name = "conduit-" + owner.getClass().getSimpleName() + "-" + THREAD_IDS.incrementAndGet();
+        return r -> {
+            Thread t = new Thread(r, name);
+            t.setDaemon(true);
+            return t;
+        };
+    }
+
+    /** Last line of defence: anything escaping the handler is reported instead of killing the thread. */
+    private final class SafetyNet implements ExceptionHandler<Event<Object>> {
+        @Override
+        public void handleEventException(Throwable ex, long sequence, Event<Object> event) {
+            fail(event == null ? null : event.getPayload(), ex);
+        }
+
+        @Override
+        public void handleOnStartException(Throwable ex) {
+            Conduit.reportError(owner, null, ex);
+            LOG.error("start failed in {}", owner, ex);
+        }
+
+        @Override
+        public void handleOnShutdownException(Throwable ex) {
+            Conduit.reportError(owner, null, ex);
+            LOG.error("shutdown failed in {}", owner, ex);
         }
     }
 }

@@ -1,36 +1,76 @@
 package io.lightning.conduit.node;
 
-import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.WaitStrategy;
-import com.lmax.disruptor.dsl.Disruptor;
+import com.lmax.disruptor.dsl.ProducerType;
+import io.lightning.conduit.dispatcher.Dispatcher;
 
+import java.util.concurrent.ThreadFactory;
+
+/**
+ * {@link Node1} whose handlers run on a dedicated consumer thread fed by a ring buffer.
+ * {@code onTrigger()}/{@code afterEvent()} run at the end of each batch drained from the ring.
+ */
 public abstract class DisruptorNode1<E1> extends Node1<E1> {
 
-    private final DisruptorComponent<E1> disruptorComponent = new DisruptorComponent<>();
+    private final DisruptorComponent disruptor = new DisruptorComponent(this);
 
     public DisruptorNode1<E1> bufferSize(int bufferSize) {
-        disruptorComponent.setBufferSize(bufferSize);
+        checkNotStarted();
+        disruptor.bufferSize(bufferSize);
         return this;
     }
 
     public DisruptorNode1<E1> waitStrategy(WaitStrategy waitStrategy) {
-        disruptorComponent.setWaitStrategy(waitStrategy);
+        checkNotStarted();
+        disruptor.waitStrategy(waitStrategy);
         return this;
     }
 
-    @Override
-    public void start() {
-        Disruptor<Event<E1>> disruptor = disruptorComponent.getDisruptor();
-        disruptor.handleEventsWith((event, l, b) -> {
-            if (event.getType() == 1) {
-                onEvent1(event.getPayload());
-            }
-        });
+    public DisruptorNode1<E1> producerType(ProducerType producerType) {
+        checkNotStarted();
+        disruptor.producerType(producerType);
+        return this;
+    }
 
-        RingBuffer<Event<E1>> ringBuffer = disruptor.start();
-        this.disruptorComponent.setRingBuffer(ringBuffer);
-        this.disruptorComponent.register(
-                this.dispatcher1
-        );
+    public DisruptorNode1<E1> threadFactory(ThreadFactory threadFactory) {
+        checkNotStarted();
+        disruptor.threadFactory(threadFactory);
+        return this;
+    }
+
+    public DisruptorNode1<E1> backpressure(DisruptorComponent.Backpressure backpressure) {
+        checkNotStarted();
+        disruptor.backpressure(backpressure);
+        return this;
+    }
+
+    /** Events rejected under {@link DisruptorComponent.Backpressure#DROP}. */
+    public long droppedCount() {
+        return disruptor.droppedCount();
+    }
+
+    /** {@code true} once a handler failed under {@link io.lightning.conduit.ErrorPolicy#HALT}. */
+    public boolean isHalted() {
+        return disruptor.isHalted();
+    }
+
+    /** Stops the consumer thread immediately without draining. Call {@link #stop()} to unsubscribe. */
+    public void halt() {
+        disruptor.halt();
+    }
+
+    @Override
+    protected final boolean isSynchronous() {
+        return false;
+    }
+
+    @Override
+    protected void doStart(Dispatcher<?>[] inputs) {
+        disruptor.start(inputs, this::deliver, this::completeCycle);
+    }
+
+    @Override
+    protected void doStop(Dispatcher<?>[] inputs) {
+        disruptor.stop(inputs);
     }
 }
