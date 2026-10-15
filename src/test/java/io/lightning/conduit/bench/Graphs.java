@@ -28,6 +28,40 @@ public final class Graphs {
         }
     }
 
+    // Distinct classes so call sites see several receiver types, as in a real application.
+    public static final class P1 extends Node1<Object> implements EventDispatcher<Object> {
+        private final ListenerRegistry<Object> listeners = new ListenerRegistry<>();
+        @Override public ListenerRegistry<Object> listeners() { return listeners; }
+        @Override protected void onEvent1(Object event) { dispatch(event); }
+    }
+
+    public static final class P2 extends Node1<Object> implements EventDispatcher<Object> {
+        private final ListenerRegistry<Object> listeners = new ListenerRegistry<>();
+        @Override public ListenerRegistry<Object> listeners() { return listeners; }
+        @Override protected void onEvent1(Object event) { dispatch(event); }
+    }
+
+    public static final class P3 extends Node1<Object> implements EventDispatcher<Object> {
+        private final ListenerRegistry<Object> listeners = new ListenerRegistry<>();
+        @Override public ListenerRegistry<Object> listeners() { return listeners; }
+        @Override protected void onEvent1(Object event) { dispatch(event); }
+    }
+
+    public static final class P4 extends Node1<Object> implements EventDispatcher<Object> {
+        private final ListenerRegistry<Object> listeners = new ListenerRegistry<>();
+        @Override public ListenerRegistry<Object> listeners() { return listeners; }
+        @Override protected void onEvent1(Object event) { dispatch(event); }
+    }
+
+    /** {@code src -> P1 -> P2 -> P3 -> P4 -> Tail}, every hop a different class. */
+    public static EventDispatcher<Object> megamorphicChain5(Tail tail) {
+        EventDispatcher<Object> src = EventDispatcher.create();
+        P1 p1 = new P1(); P2 p2 = new P2(); P3 p3 = new P3(); P4 p4 = new P4();
+        p1.subscribe1(src).start(); p2.subscribe1(p1).start(); p3.subscribe1(p2).start();
+        p4.subscribe1(p3).start(); tail.subscribe1(p4).start();
+        return src;
+    }
+
     /** Terminal node counting what reaches it. */
     public static final class Tail extends Node1<Object> {
         public long count;

@@ -37,6 +37,7 @@ public class DispatchBenchmark {
     private EventDispatcher<Object> hop1;
     private EventDispatcher<Object> chain5;
     private EventDispatcher<Object> diamond;
+    private EventDispatcher<Object> chain5Mega;
     private long plainCount;
 
     @Setup
@@ -46,6 +47,7 @@ public class DispatchBenchmark {
         hop1 = Graphs.chain(1, new Graphs.Tail());
         chain5 = Graphs.chain(5, new Graphs.Tail());
         diamond = Graphs.diamond(new Graphs.Join());
+        chain5Mega = Graphs.megamorphicChain5(new Graphs.Tail());
     }
 
     /** Baseline: one plain listener, no node scheduling. */
@@ -62,6 +64,12 @@ public class DispatchBenchmark {
     @Benchmark
     public void chain5() {
         chain5.dispatch(payload);
+    }
+
+    /** Five hops, each a different node class. */
+    @Benchmark
+    public void chain5Mega() {
+        chain5Mega.dispatch(payload);
     }
 
     @Benchmark
