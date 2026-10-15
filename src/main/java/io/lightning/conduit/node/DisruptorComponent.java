@@ -10,6 +10,7 @@ import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
 import io.lightning.conduit.Conduit;
 import io.lightning.conduit.ConduitException;
+import io.lightning.conduit.ErrorPolicy;
 import io.lightning.conduit.dispatcher.Dispatcher;
 import io.lightning.conduit.dispatcher.GraphNode;
 import org.slf4j.Logger;
@@ -29,6 +30,10 @@ import java.util.concurrent.locks.LockSupport;
  * <p>Handler failures never kill the consumer thread. Under {@link io.lightning.conduit.ErrorPolicy#HALT}
  * the node is marked halted: the consumer drains and discards remaining events (so producers never
  * stall on a full ring) and further dispatches to the node throw {@link ConduitException}.
+ *
+ * <p>The consumer thread is a containment boundary: when a handler dispatches into a synchronous
+ * graph and a node there fails under {@code HALT}, that cycle is aborted and the event dropped, but
+ * this node keeps running. Only failures of this node's own handlers apply its policy.
  */
 public final class DisruptorComponent {
     private static final Logger LOG = LoggerFactory.getLogger(DisruptorComponent.class);
@@ -195,20 +200,33 @@ public final class DisruptorComponent {
     }
 
     private void fail(Object event, Throwable error) {
-        Conduit.reportError(owner, event, error);
-        if (error instanceof VirtualMachineError) {
-            halted = true;
-            LOG.error("fatal error in {}; node halted", owner, error);
+        if (isDownstreamFailure(error)) {
+            // A synchronous cycle this node drove from its handler failed under HALT. That cycle
+            // already reported the failure and discarded its work; the node itself is healthy.
+            LOG.warn("downstream cycle driven by {} failed in {}; event dropped",
+                    owner, ((ConduitException) error).getSource(), error);
             return;
         }
-        switch (owner.errorPolicy()) {
-            case HALT -> {
-                halted = true;
-                LOG.error("handler failed in {}; node halted", owner, error);
-            }
+        // update state before notifying, so observers of the error handler see the node halted
+        boolean fatal = error instanceof VirtualMachineError;
+        ErrorPolicy policy = fatal ? ErrorPolicy.HALT : owner.errorPolicy();
+        if (policy == ErrorPolicy.HALT) halted = true;
+        Conduit.reportError(owner, event, error);
+        switch (policy) {
+            case HALT -> LOG.error(fatal ? "fatal error in {}; node halted" : "handler failed in {}; node halted",
+                    owner, error);
             case SKIP_EVENT -> { }
             case LOG_CONTINUE -> LOG.warn("handler failed in {}", owner, error);
         }
+    }
+
+    /**
+     * A {@link ConduitException} attributed to another node or listener can only reach the consumer
+     * thread by escaping a synchronous cycle the handler started with {@code dispatch} (HALT policy
+     * of the downstream node, or a dispatch into a halted Disruptor node).
+     */
+    private boolean isDownstreamFailure(Throwable error) {
+        return error instanceof ConduitException ce && ce.getSource() != null && ce.getSource() != owner;
     }
 
     private ThreadFactory defaultThreadFactory() {

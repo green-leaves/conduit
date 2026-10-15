@@ -448,6 +448,79 @@ class DisruptorModeTest {
         for (int i = 0; i < 100; i++) assertEquals((i + 100) + "," + (i + 1_000), joined.get(i));
     }
 
+    @Test
+    void downstreamHaltIsContainedAtThreadBoundary() throws InterruptedException {
+        EventDispatcher<Integer> src = EventDispatcher.create();
+        Forwarder hop = track(new Forwarder());
+        AtomicInteger failures = new AtomicInteger();
+        Conduit.errorHandler((s, e, t) -> failures.incrementAndGet());
+        List<Integer> seen = Collections.synchronizedList(new ArrayList<>());
+        CountDownLatch done = new CountDownLatch(2);
+        Node1<Integer> fragile = new Node1<>() {
+            @Override
+            protected void onEvent1(Integer e) {
+                if (e == 1) throw new IllegalStateException("bad tick");
+                seen.add(e);
+                done.countDown();
+            }
+        };
+        fragile.errorPolicy(ErrorPolicy.HALT);
+        fragile.subscribe1(hop).start();
+        hop.waitStrategy(new BlockingWaitStrategy()).subscribe1(src).start();
+
+        src.dispatch(0);
+        src.dispatch(1);
+        src.dispatch(2);
+
+        assertTrue(done.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
+        assertEquals(List.of(0, 2), seen);
+        assertFalse(hop.isHalted());
+        assertEquals(1, failures.get(), "reported once, by the failing node's cycle");
+    }
+
+    @Test
+    void ownHandlerFailureStillHaltsWhenItAlsoDispatched() throws InterruptedException {
+        EventDispatcher<Integer> src = EventDispatcher.create();
+        CountDownLatch failed = new CountDownLatch(1);
+        Conduit.errorHandler((s, e, t) -> failed.countDown());
+        Forwarder hop = track(new Forwarder() {
+            @Override
+            protected void onEvent1(Integer e) {
+                super.onEvent1(e);
+                throw new IllegalStateException("own failure");
+            }
+        });
+        hop.waitStrategy(new BlockingWaitStrategy()).subscribe1(src).start();
+
+        src.dispatch(1);
+
+        assertTrue(failed.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
+        assertTrue(hop.isHalted());
+    }
+
+    @Test
+    void disruptorNodeOutputPortFeedsSyncChild() throws InterruptedException {
+        EventDispatcher<Integer> src = EventDispatcher.create();
+        CountDownLatch done = new CountDownLatch(3);
+        List<String> seen = Collections.synchronizedList(new ArrayList<>());
+        DisruptorNode1<Integer> hop = track(new DisruptorNode1<>() {
+            final io.lightning.conduit.dispatcher.Output<String> out = output();
+            {
+                Node1<String> child = new Node1<>() {
+                    @Override protected void onEvent1(String e) { seen.add(e); done.countDown(); }
+                };
+                child.subscribe1(out).start();
+            }
+            @Override protected void onEvent1(Integer e) { out.dispatch("v" + e); }
+        });
+        hop.waitStrategy(new BlockingWaitStrategy()).subscribe1(src).start();
+
+        for (int i = 0; i < 3; i++) src.dispatch(i);
+
+        assertTrue(done.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
+        assertEquals(List.of("v0", "v1", "v2"), seen);
+    }
+
     // ------------------------------------------------------------------ soak
 
     @Test
