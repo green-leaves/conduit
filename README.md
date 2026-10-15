@@ -14,14 +14,15 @@ Conduit provides a flexible and type-safe approach to reactive programming where
 
 ## Features
 
-- **Low-latency processing** using the LMAX Disruptor ring buffer
+- **Glitch-free single-threaded graphs** - topological order, each node at most once per event
+- **Low-latency thread hand-off** using the LMAX Disruptor ring buffer
 - **Multi-type input support** - nodes can process different data types simultaneously
 - **Fluent API** for easy pipeline construction
 - **Zero allocation** on the single-threaded dispatch path
 - **Explicit error policies** (`HALT`, `SKIP_EVENT`, `LOG_CONTINUE`)
 - **Type safety** through generic interfaces
 - **Flexible node composition** up to 9 different input types
-- **Heterogeneous data processing** with automatic type detection
+- **Multiple typed outputs** per node through `Output` ports
 
 ## Architecture
 
@@ -43,14 +44,14 @@ The design supports nodes with up to 9 different input types, each with its own 
 <dependency>
     <groupId>io.github.green-leaves</groupId>
     <artifactId>conduit</artifactId>
-    <version>1.0.0</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'io.github.green-leaves:conduit:1.0.0'
+implementation 'io.github.green-leaves:conduit:2.0.0'
 ```
 
 ## Getting Started
@@ -147,6 +148,20 @@ class Normalizer extends Node1<Tick> implements EventDispatcher<Rate> {
 }
 ```
 
+For several outputs, or outputs of different types, give the node `Output` ports instead:
+
+```java
+class Pricer extends Node1<Tick> {
+    final Output<Quote> quotes = output();
+    final Output<Hedge> hedges = output();
+    @Override protected void onEvent1(Tick t) { quotes.dispatch(quote(t)); hedges.dispatch(hedge(t)); }
+}
+quoter.subscribe1(pricer.quotes);
+hedger.subscribe1(pricer.hedges);
+```
+
+A port counts as its owner for scheduling, so subscribers are ranked after the owner and receive its output in the same cycle. Publishing through a plain `EventDispatcher.create()` held in a field does **not** get this: the engine cannot tell which node it belongs to, so its output runs as a follow-up cycle and a diamond fed through it can fire twice.
+
 ### Nodes
 
 - `subscribe1()` ... `subscribe9()` - wire inputs (rejected once the node is started)
@@ -195,6 +210,7 @@ node.bufferSize(1024)                                   // power of 2
 ```
 
 - Handler failures never kill the consumer thread. Under `HALT` the node is marked halted: it keeps draining (so producers never stall on a full ring) and further dispatches to it throw `ConduitException`.
+- The consumer thread contains failures from synchronous nodes downstream of it: if a node it feeds fails under `HALT`, that cycle is aborted and the event dropped (reported once, logged at WARN), but the Disruptor node keeps running. Only its own handlers' failures apply its policy.
 - `stop()` unsubscribes, drains in-flight events (up to 5 s) and stops the thread; `halt()` stops immediately.
 - `onTrigger()`/`afterEvent()` run at the end of each batch drained from the ring.
 - Ring slots release their payload after handling. Payloads are ordinary heap objects, not preallocated slots.
@@ -219,7 +235,7 @@ java -cp "target/test-classes:target/classes:$(cat target/cp.txt)" io.lightning.
 ```
 (On Windows use `;` as the path separator. `System.nanoTime` resolution there is 100 ns, which makes the latency harness coarse.)
 
-## Upgrading from 1.0.0
+## Upgrading from 1.x to 2.0.0
 
 - `EventDispatcher` implementors return a `ListenerRegistry` from `listeners()` instead of a mutable `List` from `getListeners()`.
 - The default error policy is `HALT`: a failing handler now throws `ConduitException` out of `dispatch`. Use `Conduit.defaultErrorPolicy(ErrorPolicy.SKIP_EVENT)` for the old keep-going behaviour, without the logging.
