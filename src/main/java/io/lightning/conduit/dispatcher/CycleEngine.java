@@ -70,8 +70,9 @@ final class CycleEngine {
             run(source, targets, event);
             return;
         }
-        int srcRank = rankOf(source);
-        boolean next = srcRank <= currentRank && (firing == null || source != firing);
+        GraphNode src = GraphNode.nodeOf(source);
+        int srcRank = src != null ? src.outRank : 0;
+        boolean next = srcRank <= currentRank && (firing == null || src != firing);
         stage(source, targets, event, next);
     }
 
@@ -223,7 +224,8 @@ final class CycleEngine {
     }
 
     private static int rankOf(Object source) {
-        return source instanceof GraphNode g ? g.outRank : 0;
+        GraphNode g = GraphNode.nodeOf(source);
+        return g != null ? g.outRank : 0;
     }
 
     // ------------------------------------------------------------------ work queue

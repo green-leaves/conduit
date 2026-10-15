@@ -167,6 +167,14 @@ public abstract class GraphNode {
         return rank;
     }
 
+    /**
+     * Creates an output port owned by this node; typically assigned to a final field. Nodes
+     * subscribed to the port are ordered after this node and receive its output in the same cycle.
+     */
+    protected final <E> Output<E> output() {
+        return new Output<>(this);
+    }
+
     /** Overrides {@link Conduit#defaultErrorPolicy()} for this node; {@code null} restores the default. */
     public GraphNode errorPolicy(ErrorPolicy policy) {
         this.errorPolicy = policy;
@@ -235,8 +243,16 @@ public abstract class GraphNode {
 
     // ------------------------------------------------------------------ topology helpers
 
+    /** The node behind a dispatch source: the node itself, or the owner of an {@link Output}. */
+    static GraphNode nodeOf(Object source) {
+        if (source instanceof GraphNode g) return g;
+        if (source instanceof Output<?> o) return o.owner();
+        return null;
+    }
+
     private static GraphNode syncParent(Dispatcher<?> d) {
-        return d instanceof GraphNode g && g.isSynchronous() ? g : null;
+        GraphNode g = nodeOf(d);
+        return g != null && g.isSynchronous() ? g : null;
     }
 
     /** Longest path from a source, following synchronous node-dispatchers upstream. */
